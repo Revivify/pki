@@ -3,7 +3,7 @@ CFSSLJSON=cfssljson
 API_PORT=8888
 DOMAIN=mydomain.com
 
-.PHONY: all clean api list
+.PHONY: all clean api list bundle test-cert
 
 all: root-ca intermediate-ca server-cert
 
@@ -48,6 +48,30 @@ api: intermediate-ca
 list:
 	@echo "Issued domains:"
 	@find issued -mindepth 1 -maxdepth 1 -type d -exec basename {} \;
+
+# ===== Generate Fullchain Bundle =====
+bundle:
+	@if [ -z "$(DOMAIN)" ]; then \
+		echo "Usage: make bundle DOMAIN=example.com"; \
+	else \
+		cat issued/$(DOMAIN)/server.pem secrets/intermediate/intermediate-ca-signed.pem secrets/root/root-ca.pem > issued/$(DOMAIN)/fullchain.pem; \
+		echo "Created: issued/$(DOMAIN)/fullchain.pem"; \
+	fi
+
+# ===== Verify Certificate =====
+test-cert:
+	@bash -c '\
+	if [ -z "$(DOMAIN)" ]; then \
+		echo "Usage: make test-cert DOMAIN=example.com"; \
+	else \
+		echo "Verifying issued/$(DOMAIN)/server.pem..."; \
+		openssl verify \
+			-CAfile <(cat secrets/root/root-ca.pem secrets/intermediate/intermediate-ca-signed.pem) \
+			issued/$(DOMAIN)/server.pem; \
+		echo ""; \
+		echo "Subject, Issuer, and Expiry:"; \
+		openssl x509 -in issued/$(DOMAIN)/server.pem -noout -subject -issuer -dates; \
+	fi'
 
 # ===== Cleanup =====
 clean:

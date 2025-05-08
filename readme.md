@@ -121,11 +121,14 @@ Use this `fullchain.pem` for TLS server configs (e.g., NGINX, HAProxy, Istio).
 ### 🛠 Makefile Targets
 
 ```bash
-make all                   # Generates root, intermediate, and default domain cert
-make DOMAIN=example.com server-cert   # Issues cert for any domain (with SAN)
-make api                   # Launches CFSSL API server with intermediate
-make list                  # Lists all domains with issued certs
-make clean                 # Deletes all secrets and issued certs
+make all                                # Generates root, intermediate, and default domain cert
+make DOMAIN=example.com server-cert     # Issues cert for any domain (with SAN)
+make DOMAIN=example.com revoke          # Removes all issued certs for a domain
+make DOMAIN=example.com bundle          # Creates fullchain PEM (cert + intermediates + root)
+make DOMAIN=example.com test-cert       # Verifies cert and shows subject, issuer, and expiration
+make api                                # Launches CFSSL API server with intermediate
+make list                               # Lists all domains with issued certs
+make clean                              # Deletes all secrets and issued certs
 ```
 
 ---
@@ -155,9 +158,6 @@ make clean                 # Deletes all secrets and issued certs
 
 Coming soon (or PRs welcome):
 
-- `make revoke DOMAIN=example.com` — remove issued certs for a domain
-- `make bundle DOMAIN=example.com` — create fullchain PEM for a domain
-- `make test-cert DOMAIN=example.com` — verify cert validity with OpenSSL
 - `make watch` — auto-sign CSRs dropped into a folder
 - Dockerized API server
 - Systemd unit for background CA operation
