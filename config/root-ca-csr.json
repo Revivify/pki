@@ -1,0 +1,10 @@
+{
+  "CN": "My Root CA",
+  "key": {
+    "algo": "rsa",
+    "size": 4096
+  },
+  "ca": {
+    "expiry": "87600h"
+  }
+}

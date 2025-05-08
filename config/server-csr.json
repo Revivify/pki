@@ -1,0 +1,8 @@
+{
+  "CN": "mydomain.com",
+  "hosts": ["mydomain.com", "www.mydomain.com"],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}
