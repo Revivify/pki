@@ -1,7 +1,7 @@
 CFSSL=cfssl
 CFSSLJSON=cfssljson
 API_PORT=8888
-DOMAIN=mydomain.com
+
 
 .PHONY: all clean api list bundle test-cert
 
@@ -26,6 +26,10 @@ intermediate-ca: root-ca
 
 # ===== Server Certificate =====
 server-cert: intermediate-ca
+	@if [ -z "$(DOMAIN)" ]; then \
+		echo "Usage: make server-cert DOMAIN=example.com"; \
+		exit 1; \
+	fi
 	mkdir -p issued/$(DOMAIN)
 	echo '{ "CN": "$(DOMAIN)", "hosts": ["$(DOMAIN)"], "key": { "algo": "rsa", "size": 2048 } }' > issued/$(DOMAIN)/$(DOMAIN)-csr.json
 	$(CFSSL) gencert \
@@ -76,3 +80,13 @@ test-cert:
 # ===== Cleanup =====
 clean:
 	rm -rf secrets issued
+
+# ===== Revoke Issued Certificate =====
+revoke:
+	@if [ -z "$(DOMAIN)" ]; then \
+		echo "Usage: make revoke DOMAIN=example.com"; \
+	else \
+		echo "Revoking certificate for $(DOMAIN)..."; \
+		rm -rf issued/$(DOMAIN); \
+		echo "Done."; \
+	fi

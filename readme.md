@@ -126,10 +126,7 @@ make DOMAIN=example.com server-cert     # Issues cert for any domain (with SAN)
 make DOMAIN=example.com revoke          # Removes all issued certs for a domain
 make DOMAIN=example.com bundle          # Creates fullchain PEM (cert + intermediates + root)
 make DOMAIN=example.com test-cert       # Verifies cert and shows subject, issuer, and expiration
-make api                                # Launches CFSSL API server with intermediate
-make list                               # Lists all domains with issued certs
-make clean                              # Deletes all secrets and issued certs
-```
+
 
 ---
 
@@ -158,7 +155,6 @@ make clean                              # Deletes all secrets and issued certs
 
 Coming soon (or PRs welcome):
 
-- `make watch` — auto-sign CSRs dropped into a folder
 - Dockerized API server
 - Systemd unit for background CA operation
 - CRL/OCSP responder integration
