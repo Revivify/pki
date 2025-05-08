@@ -9,10 +9,12 @@ This repo contains a fully-automated, minimal PKI infrastructure using [Cloudfla
 ```
 pki/
 ├── config/                   # CSR + signing policy JSON files
-├── root/                     # Root CA private key + cert
-├── intermediate/             # Intermediate CA private key + cert
-├── server/                   # Example end-entity cert
-├── Makefile                  # One-command automation
+├── secrets/                 # 🔒 Root and Intermediate CA keys and certs
+│   ├── root/
+│   └── intermediate/
+├── issued/                  # Generated end-entity certs by domain
+├── Makefile                 # One-command automation and dev workflow
+├── readme.md
 ```
 
 ---
@@ -33,15 +35,24 @@ make all
 
 Generates:
 
-- `root/root-ca.pem`
-- `intermediate/intermediate-ca-signed.pem`
-- `server/server.pem` (signed by intermediate)
+- Root CA and Intermediate CA keys and certs under `secrets/`
+- Default domain certificate and key under `issued/`
+
+### 🔐 Issue Certificate for Any Domain
+
+```bash
+make DOMAIN=example.com server-cert
+```
+
+Automatically generates a CSR for the specified domain and issues a certificate signed by the Intermediate CA. The issued cert and key are saved under `issued/`.
 
 ### 🧼 Clean Generated Files
 
 ```bash
 make clean
 ```
+
+Deletes all secrets and issued certificates.
 
 ---
 
@@ -52,6 +63,16 @@ make api
 ```
 
 Runs a local CA server at `http://127.0.0.1:8888`, capable of issuing certs via `/api/v1/cfssl/newcert` and signing CSRs.
+
+---
+
+### 📋 List Issued Certificates
+
+```bash
+make list
+```
+
+Lists all domains with issued certificates under the `issued/` directory.
 
 ---
 
@@ -74,14 +95,14 @@ Issue certificate with curl:
 
 ```bash
 curl -X POST http://127.0.0.1:8888/api/v1/cfssl/newcert \
-  -d @config/server-csr.json | cfssljson -bare server/server
+  -d @config/server-csr.json | cfssljson -bare issued/mydomain.com/mydomain.com
 ```
 
 Outputs:
 
-- `server/server.pem` (certificate)
-- `server/server-key.pem` (private key)
-- `server/server.csr` (optional CSR)
+- `issued/mydomain.com/mydomain.com.pem` (certificate)
+- `issued/mydomain.com/mydomain.com-key.pem` (private key)
+- `issued/mydomain.com/mydomain.com.csr` (optional CSR)
 
 ---
 
@@ -90,10 +111,22 @@ Outputs:
 To create a full trust bundle:
 
 ```bash
-cat server/server.pem intermediate/intermediate-ca-signed.pem root/root-ca.pem > fullchain.pem
+cat issued/mydomain.com/mydomain.com.pem secrets/intermediate/intermediate-ca-signed.pem secrets/root/root-ca.pem > fullchain.pem
 ```
 
 Use this `fullchain.pem` for TLS server configs (e.g., NGINX, HAProxy, Istio).
+
+---
+
+### 🛠 Makefile Targets
+
+```bash
+make all                   # Generates root, intermediate, and default domain cert
+make DOMAIN=example.com server-cert   # Issues cert for any domain (with SAN)
+make api                   # Launches CFSSL API server with intermediate
+make list                  # Lists all domains with issued certs
+make clean                 # Deletes all secrets and issued certs
+```
 
 ---
 
@@ -122,9 +155,13 @@ Use this `fullchain.pem` for TLS server configs (e.g., NGINX, HAProxy, Istio).
 
 Coming soon (or PRs welcome):
 
+- `make revoke DOMAIN=example.com` — remove issued certs for a domain
+- `make bundle DOMAIN=example.com` — create fullchain PEM for a domain
+- `make test-cert DOMAIN=example.com` — verify cert validity with OpenSSL
+- `make watch` — auto-sign CSRs dropped into a folder
 - Dockerized API server
-- Systemd service for API mode
-- CRL/OCSP responders
+- Systemd unit for background CA operation
+- CRL/OCSP responder integration
 
 ---
 
