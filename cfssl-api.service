@@ -1,0 +1,36 @@
+[Unit]
+Description=CFSSL API Server for PKI
+Documentation=file:///path/to/your/pki_project_root/readme.md
+After=network.target
+
+[Service]
+Type=simple
+
+# User and Group that will run the service
+# Replace 'your_user' and 'your_group' with appropriate values.
+# It's recommended to run as a non-root user.
+User=your_user
+Group=your_group
+
+# Path to the root directory of your PKI project (where the Makefile is located)
+# Replace '/path/to/your/pki_project_root' with the actual absolute path.
+WorkingDirectory=/path/to/your/pki_project_root
+
+# Command to start the API server
+# This assumes 'make' is in /usr/bin/ and your Makefile's 'api' target correctly starts the server in the foreground.
+# If 'make api' daemonizes the process itself, you might need to adjust Type and other parameters.
+ExecStart=/usr/bin/make api
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+# Optional: Standard output and error logging to journald
+StandardOutput=journal
+StandardError=journal
+
+# Optional: Environment variables if needed by your application
+# Environment="FOO=bar"
+
+[Install]
+WantedBy=multi-user.target

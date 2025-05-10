@@ -3,7 +3,7 @@ CFSSLJSON=cfssljson
 API_PORT=8888
 
 
-.PHONY: all clean api list bundle test-cert
+.PHONY: all clean api list bundle test-cert docker docker-build docker-run docker-run-fg docker-stop docker-rm docker-logs docker-clean-container docker-prepare-dirs
 
 all: root-ca intermediate-ca server-cert
 
@@ -90,3 +90,76 @@ revoke:
 		rm -rf issued/$(DOMAIN); \
 		echo "Done."; \
 	fi
+
+# ===== Docker Orchestration =====
+DOCKER_IMAGE_NAME ?= cfssl-pki-server
+DOCKER_CONTAINER_NAME ?= cfssl-pki-api
+# Use existing API_PORT as the default for Docker host and container ports
+# You can override these by setting them before calling make, e.g., DOCKER_HOST_PORT=9999 make docker
+DOCKER_HOST_PORT ?= $(API_PORT)
+DOCKER_CONTAINER_INTERNAL_PORT ?= $(API_PORT)
+
+# Define host directories for Docker volumes
+HOST_SECRETS_DIR := $(shell pwd)/secrets
+HOST_ISSUED_DIR := $(shell pwd)/issued
+
+# Target to create host directories for volumes if they don't exist, ensuring correct ownership
+docker-prepare-dirs:
+	@echo "Ensuring host directories for Docker volumes exist..."
+	@mkdir -p $(HOST_SECRETS_DIR)
+	@mkdir -p $(HOST_ISSUED_DIR)
+	@echo "Host directories: $(HOST_SECRETS_DIR), $(HOST_ISSUED_DIR)"
+
+docker-build:
+	@echo "Building Docker image $(DOCKER_IMAGE_NAME)..."
+	docker build -t $(DOCKER_IMAGE_NAME) .
+
+# The 'docker' target will build the image (if not already built) and run the container.
+# This addresses your point that the 'docker' target needs to happen after another step (building).
+docker: docker-run
+
+docker-run: docker-build docker-prepare-dirs
+	@echo "Running Docker container $(DOCKER_CONTAINER_NAME) from image $(DOCKER_IMAGE_NAME) in detached mode..."
+	@echo "API server will be available on http://localhost:$(DOCKER_HOST_PORT)"
+	@echo "Host secrets directory: $(HOST_SECRETS_DIR) -> /app/secrets (in container)"
+	@echo "Host issued certs directory: $(HOST_ISSUED_DIR) -> /app/issued (in container)"
+	docker run -d \
+		-p $(DOCKER_HOST_PORT):$(DOCKER_CONTAINER_INTERNAL_PORT) \
+		--name $(DOCKER_CONTAINER_NAME) \
+		-e API_PORT=$(DOCKER_CONTAINER_INTERNAL_PORT) \
+		-v $(HOST_SECRETS_DIR):/app/secrets \
+		-v $(HOST_ISSUED_DIR):/app/issued \
+		$(DOCKER_IMAGE_NAME)
+	@echo "Container $(DOCKER_CONTAINER_NAME) started."
+	@echo "To view logs: make docker-logs"
+	@echo "To stop the container: make docker-stop"
+
+docker-run-fg: docker-build docker-prepare-dirs
+	@echo "Running Docker container $(DOCKER_CONTAINER_NAME)-fg from image $(DOCKER_IMAGE_NAME) in foreground..."
+	@echo "API server will be available on http://localhost:$(DOCKER_HOST_PORT)"
+	@echo "Host secrets directory: $(HOST_SECRETS_DIR) -> /app/secrets (in container)"
+	@echo "Host issued certs directory: $(HOST_ISSUED_DIR) -> /app/issued (in container)"
+	@echo "Press Ctrl+C to stop."
+	docker run --rm -it \
+		-p $(DOCKER_HOST_PORT):$(DOCKER_CONTAINER_INTERNAL_PORT) \
+		--name $(DOCKER_CONTAINER_NAME)-fg \
+		-e API_PORT=$(DOCKER_CONTAINER_INTERNAL_PORT) \
+		-v $(HOST_SECRETS_DIR):/app/secrets \
+		-v $(HOST_ISSUED_DIR):/app/issued \
+		$(DOCKER_IMAGE_NAME)
+
+docker-stop:
+	@echo "Stopping Docker container $(DOCKER_CONTAINER_NAME)..."
+	docker stop $(DOCKER_CONTAINER_NAME) || echo "Container $(DOCKER_CONTAINER_NAME) not running or already stopped."
+
+docker-rm:
+	@echo "Removing Docker container $(DOCKER_CONTAINER_NAME)..."
+	docker rm $(DOCKER_CONTAINER_NAME) || echo "Container $(DOCKER_CONTAINER_NAME) not found or already removed."
+
+docker-logs:
+	@echo "Following logs for Docker container $(DOCKER_CONTAINER_NAME)... (Press Ctrl+C to stop)"
+	docker logs -f $(DOCKER_CONTAINER_NAME)
+
+# Stops and removes the container
+docker-clean-container: docker-stop docker-rm
+	@echo "Docker container $(DOCKER_CONTAINER_NAME) stopped and removed."
